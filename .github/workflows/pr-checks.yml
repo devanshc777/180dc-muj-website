@@ -1,0 +1,39 @@
+name: PR checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch follows type/short-topic
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|chore|ci|hotfix)/[a-z0-9]+(-[a-z0-9]+)*$'
+          if [[ "$BRANCH" =~ $pattern || "$BRANCH" == dependabot/* ]]; then
+            echo "ok: $BRANCH"
+          else
+            echo "::error::Branch '$BRANCH' must match type/short-topic, e.g. feat/team-page. See CONTRIBUTING.md#branch-naming"
+            exit 1
+          fi
+
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title follows Conventional Commits
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|chore|ci|hotfix|build|revert)(\([a-z0-9-]+\))?!?: [a-z].{2,}$'
+          if [[ "$TITLE" =~ $pattern ]]; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::PR title '$TITLE' must look like 'feat(scope): lowercase summary'. See CONTRIBUTING.md#commit-messages"
+            exit 1
+          fi

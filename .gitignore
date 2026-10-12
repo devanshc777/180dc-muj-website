@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+out/
+dist/
+build/
+
+# vercel
+.vercel/
+
+# env (set these in Vercel, never commit)
+.env
+.env.*
+!.env.example
+
+# python tooling (globe build scripts)
+__pycache__/
+.venv/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
