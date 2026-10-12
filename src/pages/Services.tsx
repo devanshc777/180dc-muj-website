@@ -1,10 +1,11 @@
 
 import {
   ArrowUpRight,
-  TrendingUp,
-  Search,
+  Wallet,
+  Palette,
   Megaphone,
-  Settings2,
+  Cpu,
+  Handshake,
 } from "lucide-react";
 
 import { Link, useParams } from "react-router-dom";
@@ -16,7 +17,7 @@ import {
   TextLink,
 } from "../components/UI";
 
-const icons = [TrendingUp, Search, Megaphone, Settings2];
+const icons = [Wallet, Palette, Megaphone, Cpu, Handshake];
 
 export function ServicesIndex() {
   return (
@@ -32,7 +33,7 @@ export function ServicesIndex() {
       <section className="section">
         <Heading
           kicker="OUR CAPABILITIES"
-          title="Four ways to"
+          title="Five ways to"
           accent="move forward."
           desc="Each service has a dedicated page, potential deliverables and linked case studies. Project cards are placeholders until MUJ content is supplied."
         />
