@@ -30,7 +30,7 @@ Set in Vercel → Settings → Environment Variables, scoped per environment.
 
 | Name | Environments | Purpose |
 |---|---|---|
-| _none yet_ | | |
+| `VITE_FORMSPREE_ENDPOINT` | Preview, Production | Public endpoint used by the Work With Us enquiry form; set to the Formspree form URL. |
 
 ## Rolling back
 
