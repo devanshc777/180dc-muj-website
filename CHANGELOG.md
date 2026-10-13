@@ -1,13 +1,18 @@
-# Changelog — Homepage
+# Changelog - Homepage
 
 ## Branch: `feat/homepage`
 
 ### Changes made
-- Updated the homepage layout in `src/pages/Home.tsx`.
-- Modified shared styling in `src/styles.css`.
-- Updated website data in `src/data.ts`.
-- Updated related page layouts in `src/pages/Impact.tsx` and `src/pages/Services.tsx`, if applicable.
+- Updated the homepage hero copy and integrated the interactive 3D globe through `public/globe/index.html`.
+- Layered the globe behind the hero text and controls, with responsive absolute positioning and pointer interaction enabled.
+- Adjusted the globe position through iterative vertical and horizontal offsets while preserving its rendering and animation.
+- Updated homepage impact metrics and supporting layout styles.
+- Added the Events page and linked it from the site navigation and routes.
 
-### Purpose
-Document the homepage and related UI changes made before submitting the pull request.
-
+### Files
+- `src/pages/Home.tsx`
+- `src/styles.css`
+- `public/globe/index.html`
+- `src/App.tsx`
+- `src/components/Layout.tsx`
+- `src/pages/Events.tsx`
