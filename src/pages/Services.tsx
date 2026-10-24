@@ -43,19 +43,12 @@ export function ServicesIndex() {
             const Icon = icons[i % icons.length];
 
             return (
-              <Link
-                className="card service"
-                to={`/services/${s.slug}`}
-                key={s.slug}
-              >
+              <article className="card service" key={s.slug}>
                 <label>{s.n} / CAPABILITY</label>
                 <Icon className="greenicon" />
                 <h3>{s.title}</h3>
                 <p>{s.short}</p>
-                <span className="cardlink">
-                  Explore capability <ArrowUpRight size={16} />
-                </span>
-              </Link>
+              </article>
             );
           })}
         </div>

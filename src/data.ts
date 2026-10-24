@@ -6,11 +6,9 @@ export const services=[
 {slug:"acquisitions-advisory",n:"05",title:"Acquisitions × Advisory",short:"Make informed decisions about growth, transition and opportunity.",description:"Support organisations as they assess acquisitions, partnerships and strategic transitions with structured research and practical advice.",capabilities:["Opportunity and target assessment","Commercial and strategic due diligence","Market and sector analysis","Partnership evaluation","Integration planning","Strategic transaction advisory"],deliverables:["Opportunity assessment","Due diligence findings","Strategic recommendation","Integration or transition roadmap"]}
 ];
 export const team=[
-{name:"Leadership team member",role:"Chapter President",dept:"Leadership"},
-{name:"Consulting leadership",role:"Consulting Director",dept:"Consulting"},
-{name:"Operations leadership",role:"Operations Lead",dept:"Operations"},
-{name:"Marketing leadership",role:"Marketing Lead",dept:"Marketing"},
-{name:"Finance leadership",role:"Finance Lead",dept:"Finance"},
+{name:"Shaarav Aggarwal",role:"President",dept:"Leadership"},
+{name:"Vedant",role:"Treasurer",dept:"Finance"},
+{name:"Devansh Chaudhary",role:"Technical Head",dept:"Technical Consultancy"},
 {name:"Consultant profile",role:"Student Consultant",dept:"Consulting"}
 ];
 export const metrics=[["—","Projects completed"],["—","Client organisations"],["—","People reached"],["—","Consultants trained"]];
