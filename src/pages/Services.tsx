@@ -34,7 +34,7 @@ export function ServicesIndex() {
           kicker="OUR CAPABILITIES"
           title="Four ways to"
           accent="move forward."
-          desc="Each service has a dedicated page, potential deliverables and linked case studies. Project cards are placeholders until MUJ content is supplied."
+          desc="Explore the kinds of questions we can help organisations investigate, and the outputs a project may produce. Final scope is agreed with each partner."
         />
 
         <div className="cards two">
@@ -183,7 +183,7 @@ export function ServiceDetail() {
           kicker="PROJECT LIBRARY"
           title="The work behind"
           accent="the words."
-          desc="Connect this service to actual projects and their detailed case studies when approved content is ready."
+          desc="Selected project summaries are available where chapter notes describe relevant work. Detailed deliverables and outcomes require client approval."
         />
 
         <div className="cards two">
@@ -192,30 +192,21 @@ export function ServiceDetail() {
             to={`/case-studies/${s.slug}-case-01`}
           >
             <div className="casecover">{s.n} / CASE FILE</div>
-            <label>CLIENT SECTOR / TO ADD</label>
+            <label>ILLUSTRATIVE CASE FILE</label>
             <h3>{s.title} engagement</h3>
             <p>
-              Add the challenge, methodology, deliverables and
-              measurable outcome.
+              Explore the case-study framework for documenting a challenge, research approach, recommendations and evidence of outcomes.
             </p>
             <span className="cardlink">
               Open case study <ArrowUpRight size={16} />
             </span>
           </Link>
 
-          <article className="card">
-            <label>CASE STUDY TEMPLATE</label>
-            <h3>Content to be added</h3>
-            <p>
-              No MUJ client, project or outcome is claimed by this
-              placeholder.
-            </p>
-          </article>
+
         </div>
 
         <div className="notice">
-          Replace these placeholder case studies with verified project
-          work and approved client information.
+          Project work is published only when scope and client permissions are confirmed. Recommendations, deliverables and measured outcomes are described separately.
         </div>
       </section>
 
