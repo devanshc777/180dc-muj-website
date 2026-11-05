@@ -79,3 +79,119 @@ body{background:#070908;isolation:isolate}
 @media(prefers-reduced-motion:reduce){.ambient-orb,.ambient-noise,.homehero:after,.pagehero:after,.core:before,.core:after{animation:none!important}.motion-reveal{opacity:1!important;transform:none!important;transition:none!important}.page-stage{animation:none!important}}
 /* Keep ambient fixed layers viewport-bound without allowing horizontal page drift. */
 .shell{overflow-x:clip;overflow-y:visible}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   180DC interactive motion layer (v2)
+   Adds: constellation canvas, cursor ring, pointer parallax, 3D card tilt,
+   magnetic buttons, click ripple, heading shimmer, staggered reveals,
+   hiding nav, FAQ motion. Colour palette and layout are unchanged.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{--mx:0;--my:0;--sy:0}
+
+/* Focus visibility for keyboard users */
+:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+
+/* ── Background: constellation canvas + parallax orbs ── */
+.ambient-particles{position:absolute;inset:0;display:block;opacity:.85}
+.ambient-orb-one{translate:calc(var(--mx)*-34px) calc(var(--my)*-26px - var(--sy)*.05px)}
+.ambient-orb-two{translate:calc(var(--mx)*28px) calc(var(--my)*22px - var(--sy)*.035px)}
+.ambient-orb-three{translate:calc(var(--mx)*-18px) calc(var(--my)*-14px - var(--sy)*.02px)}
+
+/* ── Custom cursor (desktop with a mouse only; the real cursor stays visible) ── */
+.cursor-ring,.cursor-dot{position:fixed;left:0;top:0;width:0;height:0;z-index:200;pointer-events:none;opacity:0;transition:opacity .3s}
+.cursor-ring:before{content:"";position:absolute;width:36px;height:36px;left:-18px;top:-18px;border:1px solid #b8ff5588;border-radius:50%;transition:transform .35s var(--ease-out),background .3s,border-color .3s}
+.cursor-dot:before{content:"";position:absolute;width:6px;height:6px;left:-3px;top:-3px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);transition:transform .25s var(--ease-out)}
+html.has-cursor .cursor-ring,html.has-cursor .cursor-dot{opacity:1}
+html.cursor-active .cursor-ring:before{transform:scale(1.65);background:#b8ff5512;border-color:#b8ff55cc}
+html.cursor-active .cursor-dot:before{transform:scale(.55)}
+html.cursor-down .cursor-ring:before{transform:scale(.7);background:#b8ff5522}
+@media(hover:none),(pointer:coarse){.cursor-ring,.cursor-dot{display:none}}
+
+/* ── Navigation: tucks away on scroll down, returns on scroll up ── */
+.nav{transition:transform .55s var(--ease-out),background .3s,border-color .3s,box-shadow .3s}
+.nav[data-hidden="true"]{transform:translateY(-100%)}
+.nav[data-scrolled="true"]{background:#070908ee;box-shadow:0 12px 40px #0006}
+.nav[data-scrolled="true"] .brand img{transform:scale(.94)}
+.links>a:not(.work-link):after{content:"";display:block;height:2px;background:var(--green);margin-top:6px;transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease-out)}
+.links>a:not(.work-link):hover:after,.links>a.active:after{transform:scaleX(1)}
+.work-link svg,.goldbtn svg{transition:transform .4s var(--ease-out)}
+.work-link:hover svg,.goldbtn:hover svg{transform:translate(3px,-3px)}
+
+/* ── Scroll progress head glow ── */
+.scroll-progress:after{content:"";position:absolute;right:-2px;top:-3px;width:12px;height:8px;border-radius:50%;background:var(--green);filter:blur(4px)}
+
+/* ── Page entrance (re-plays on every route change; no leftover transform) ── */
+.page-stage{animation:pageIn .7s var(--ease-out) backwards}
+@keyframes pageIn{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
+
+/* ── Hero: grid lights up under the pointer + pointer / scroll parallax ── */
+.homehero:before,.pagehero:before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(#b8ff5538 1px,transparent 1px),linear-gradient(90deg,#b8ff5538 1px,transparent 1px);background-size:70px 70px;-webkit-mask-image:radial-gradient(250px circle at var(--hx,-400px) var(--hy,-400px),#000,transparent 75%);mask-image:radial-gradient(250px circle at var(--hx,-400px) var(--hy,-400px),#000,transparent 75%);opacity:0;transition:opacity .5s}
+.homehero:hover:before,.pagehero:hover:before{opacity:1}
+.homehero:before{animation:gridFloat 24s linear infinite}
+.homecopy{translate:0 calc(min(var(--sy),800) * .04px)}
+.hero-copy{translate:0 calc(min(var(--sy),700) * .05px)}
+.orbital{translate:0 calc(min(var(--sy),800) * -.06px)}
+.core{translate:calc(var(--mx)*-12px) calc(var(--my)*-10px)}
+.r1{translate:calc(var(--mx)*9px) calc(var(--my)*7px)}
+.r2{translate:calc(var(--mx)*-7px) calc(var(--my)*-6px)}
+.f1{translate:calc(var(--mx)*26px) calc(var(--my)*20px)}
+.f2{translate:calc(var(--mx)*-22px) calc(var(--my)*-16px)}
+.hero-stamp{translate:calc(var(--mx)*-18px) calc(var(--my)*-14px)}
+.float{transition:border-color .3s,color .3s,background .3s}
+.float:hover{border-color:#b8ff5580;color:var(--green);background:#142016f0}
+.core{transition:border-color .3s}.core:hover{border-color:#b8ff55cc}
+
+/* ── Headline accents: slow light sweep through the green / grey words ── */
+.heading h2 em,.section h2 em,.hero-copy h1 em,.homehero h1 em{background-image:linear-gradient(100deg,var(--green) 0%,var(--green) 40%,#eaffc4 50%,var(--green) 60%,var(--green) 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:textShine 7s ease-in-out infinite}
+.greenblock h2 em{background-image:linear-gradient(100deg,#315d18 0%,#315d18 40%,#5f9f31 50%,#315d18 60%,#315d18 100%)}
+.homehero h1 span{background-image:linear-gradient(100deg,#89928a 0%,#89928a 40%,#dfe5db 50%,#89928a 60%,#89928a 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:textShine 7s 1.2s ease-in-out infinite}
+@keyframes textShine{0%{background-position:100% 0}55%,100%{background-position:0% 0}}
+
+/* ── Scroll reveal: variety, staggered headings, snappier after settling ── */
+.card.motion-reveal:not(.is-visible){transform:translate3d(0,34px,0) scale(.97)}
+.motion-reveal.is-visible .heading>*{animation:fadeUp .85s var(--ease-out) backwards}
+.motion-reveal.is-visible .heading>*:nth-child(2){animation-delay:.09s}
+.motion-reveal.is-visible .heading>*:nth-child(3){animation-delay:.18s}
+.checklist li,.client-placeholder{transition:color .3s,border-color .3s,background .3s}
+.checklist li:hover{transform:translateX(6px);color:#fff}
+.client-placeholder:hover{border-color:#b8ff5560;background:#101711}
+.motion-reveal.motion-done{transition:opacity .3s,transform .4s var(--ease-out),border-color .35s,background .35s,box-shadow .4s,padding .3s,color .3s,text-shadow .3s;transition-delay:0ms}
+
+/* ── Cards: 3D tilt + cursor spotlight (--rx/--ry/--card-x/--card-y are set from Layout.tsx) ── */
+.card{--rx:0deg;--ry:0deg}
+.card.is-visible:hover{transform:perspective(1000px) translate3d(0,-8px,0) rotateX(var(--rx)) rotateY(var(--ry))}
+.card:before{background:radial-gradient(380px circle at var(--card-x,50%) var(--card-y,50%),#b8ff5518,transparent 65%)}
+.card h3{transition:color .3s}.card:hover h3{color:#fff}
+.card .greenicon{transition:transform .5s var(--ease-out),filter .3s}.card:hover .greenicon{transform:scale(1.15) rotate(-6deg);filter:drop-shadow(0 0 8px #b8ff5588)}
+.cardlink svg{transition:transform .4s var(--ease-out)}.card:hover .cardlink svg{transform:translateX(4px)}
+
+/* ── Click ripple ── */
+.ripple{position:absolute;z-index:-1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#ffffffa0 0%,#ffffff00 68%);transform:scale(0);animation:rippleOut .7s ease-out forwards}
+.work-link .ripple{background:radial-gradient(circle,#b8ff5566 0%,#b8ff5500 68%)}
+@keyframes rippleOut{to{transform:scale(1);opacity:0}}
+
+/* ── FAQ ── */
+.faq summary b{display:inline-block;transition:transform .45s var(--ease-out)}
+.faq details[open] summary b{transform:rotate(45deg)}
+.faq details[open]{background:linear-gradient(90deg,#b8ff5509,transparent)}
+.faq details[open] p{animation:fadeUp .55s var(--ease-out) both}
+
+/* ── Form focus ── */
+.enquiry input,.enquiry select,.enquiry textarea{transition:border-color .25s,box-shadow .3s,background .3s}
+.enquiry input:focus,.enquiry select:focus,.enquiry textarea:focus{box-shadow:0 0 0 3px #b8ff5514,0 0 26px #b8ff5510;background:#101a12}
+.enquiry form label{transition:color .25s}.enquiry form label:focus-within{color:var(--green)}
+
+/* ── Footer ── */
+.footbrand{transition:text-shadow .3s}.footbrand:hover{text-shadow:0 0 22px #b8ff5566}
+
+@media(max-width:760px){
+  .links>a:not(.work-link):after{display:none}
+  .card.is-visible:hover{transform:translate3d(0,-4px,0)}
+  .ambient-particles{opacity:.6}
+}
+@media(prefers-reduced-motion:reduce){
+  .cursor-ring,.cursor-dot,.ambient-particles{display:none!important}
+  .nav[data-hidden="true"]{transform:none!important}
+  .card.is-visible:hover{transform:none!important}
+}
+@media print{.motion-reveal{opacity:1!important;transform:none!important}.ambient-bg,.cursor-ring,.cursor-dot,.scroll-progress{display:none!important}}
