@@ -60,6 +60,9 @@ export default function Layout(){
   const headerRef=useRef<HTMLElement>(null);
   const ringRef=useRef<HTMLDivElement>(null);
   const dotRef=useRef<HTMLDivElement>(null);
+  const bgRef=useRef<HTMLDivElement>(null);
+  const progressRef=useRef<HTMLDivElement>(null);
+  const heroRef=useRef<HTMLElement|null>(null);
   const openRef=useRef(false);
   const magnetsRef=useRef<Magnet[]>([]);
 
@@ -100,8 +103,11 @@ export default function Layout(){
         s.cy+=dy*.22;
         s.mx+=(s.tmx-s.mx)*.07;
         s.my+=(s.tmy-s.my)*.07;
-        root.style.setProperty("--mx",s.mx.toFixed(4));
-        root.style.setProperty("--my",s.my.toFixed(4));
+        const hero=heroRef.current;
+        if(hero&&window.scrollY<1100){
+          hero.style.setProperty("--mx",s.mx.toFixed(3));
+          hero.style.setProperty("--my",s.my.toFixed(3));
+        }
         if(ringRef.current) ringRef.current.style.transform=`translate3d(${s.cx.toFixed(1)}px,${s.cy.toFixed(1)}px,0)`;
         if(dotRef.current) dotRef.current.style.transform=`translate3d(${s.tx.toFixed(1)}px,${s.ty.toFixed(1)}px,0)`;
         if(Math.abs(dx)>.1||Math.abs(dy)>.1||Math.abs(s.tmx-s.mx)>.001||Math.abs(s.tmy-s.my)>.001) moving=true;
@@ -148,8 +154,11 @@ export default function Layout(){
       s.tmx=(event.clientX/window.innerWidth-.5)*2;
       s.tmy=(event.clientY/window.innerHeight-.5)*2;
       s.pointerIn=true;
-      root.style.setProperty("--pointer-x",`${event.clientX}px`);
-      root.style.setProperty("--pointer-y",`${event.clientY}px`);
+      const bg=bgRef.current;
+      if(bg){
+        bg.style.setProperty("--pointer-x",`${event.clientX}px`);
+        bg.style.setProperty("--pointer-y",`${event.clientY}px`);
+      }
 
       if(fine&&!reduce){
         if(!root.classList.contains("has-cursor")){
@@ -219,8 +228,8 @@ export default function Layout(){
       scrollTicking=false;
       const y=window.scrollY;
       const max=document.documentElement.scrollHeight-window.innerHeight;
-      root.style.setProperty("--scroll-progress",`${(max>0?y/max:0)*100}%`);
-      root.style.setProperty("--sy",String(Math.round(y)));
+      progressRef.current?.style.setProperty("--scroll-progress",`${(max>0?y/max:0)*100}%`);
+      if(heroRef.current&&y<1100) heroRef.current.style.setProperty("--sy",String(Math.round(y)));
       const header=headerRef.current;
       if(header){
         header.dataset.scrolled=y>16?"true":"false";
@@ -238,6 +247,19 @@ export default function Layout(){
       }
     };
 
+    // Low-power fallback: if the first second runs slowly, switch the heaviest effects off.
+    let probeId=0;
+    const probeTimer=window.setTimeout(()=>{
+      let frames=0;
+      const begin=performance.now();
+      const count=(now:number)=>{
+        frames++;
+        if(now-begin<1200) probeId=window.requestAnimationFrame(count);
+        else if(frames/((now-begin)/1000)<32) root.classList.add("lite-motion");
+      };
+      probeId=window.requestAnimationFrame(count);
+    },900);
+
     updateScroll();
     window.addEventListener("scroll",onScroll,{passive:true});
     window.addEventListener("pointermove",onPointerMove,{passive:true});
@@ -247,6 +269,8 @@ export default function Layout(){
 
     return ()=>{
       window.cancelAnimationFrame(raf);
+      window.clearTimeout(probeTimer);
+      window.cancelAnimationFrame(probeId);
       window.removeEventListener("scroll",onScroll);
       window.removeEventListener("pointermove",onPointerMove);
       window.removeEventListener("pointerdown",onPointerDown);
@@ -261,6 +285,7 @@ export default function Layout(){
     const targets=Array.from(document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR));
     const timers:number[]=[];
 
+    heroRef.current=document.querySelector<HTMLElement>(".homehero, .pagehero");
     magnetsRef.current=Array.from(document.querySelectorAll<HTMLElement>(MAGNET_SELECTOR)).map(el=>({el,x:0,y:0}));
 
     targets.forEach(el=>{
@@ -304,13 +329,13 @@ export default function Layout(){
   },[loc.pathname]);
 
   return <div className="shell">
-    <div className="ambient-bg" aria-hidden="true">
+    <div className="ambient-bg" aria-hidden="true" ref={bgRef}>
       <span className="ambient-orb ambient-orb-one"/><span className="ambient-orb ambient-orb-two"/>
       <span className="ambient-orb ambient-orb-three"/><span className="ambient-grid"/>
       <ParticleField/>
       <span className="ambient-noise"/>
     </div>
-    <div className="scroll-progress" aria-hidden="true"/>
+    <div className="scroll-progress" aria-hidden="true" ref={progressRef}/>
     <div className="cursor-ring" ref={ringRef} aria-hidden="true"/>
     <div className="cursor-dot" ref={dotRef} aria-hidden="true"/>
     <header className="nav" ref={headerRef}>

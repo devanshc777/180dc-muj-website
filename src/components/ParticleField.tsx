@@ -1,324 +1,173 @@
-import {useState,useEffect,useLayoutEffect,useRef} from "react";
-import {Link,NavLink,Outlet,useLocation} from "react-router-dom";
-import {Menu,X,ArrowUpRight} from "lucide-react";
-import ParticleField from "./ParticleField";
+import {useEffect,useRef} from "react";
 
-const links=[["/about","About Us"],["/impact","Impact"],["/services","Services"],["/people","People"],["/join","Join Us"]];
+/**
+ * Subtle "constellation" background.
+ * - Small green / gold points drift slowly and join up with faint lines when close.
+ * - On devices with a mouse, nearby points are gently drawn towards the pointer.
+ * - Pauses when the tab is hidden, is skipped entirely for prefers-reduced-motion,
+ *   and uses fewer points on small screens to protect performance.
+ * It is purely decorative (aria-hidden) and sits behind all content.
+ */
 
-/** Elements that fade / slide in when they scroll into view. */
-const REVEAL_SELECTOR=[
-  ".section",".pagehero",".homecopy",".orbital",".card",".rows > div",".faq details",
-  ".enquiry form",".hero-stamp",".checklist li",".metricpreview b",".client-placeholder",
-].join(", ");
+type Particle={x:number;y:number;vx:number;vy:number;r:number;gold:boolean;phase:number};
 
-/** Number elements that count up once visible (only if they contain a real number). */
-const COUNTER_SELECTOR=".metric strong, .metric-value, .metricpreview b";
+const GREEN="184,255,85";
+const GOLD="214,181,109";
 
-/** Buttons that gently lean towards the pointer on desktop. */
-const MAGNET_SELECTOR=".goldbtn, .work-link";
-
-/** Elements that show a click ripple. */
-const RIPPLE_SELECTOR=".goldbtn, .work-link";
-
-/** Anything that should make the custom cursor ring grow. */
-const INTERACTIVE_SELECTOR="a, button, summary, input, select, textarea, label, .card";
-
-type Magnet={el:HTMLElement;x:number;y:number};
-
-/** Count a number up inside the first text node of an element, e.g. "120+" or "1,500". */
-function runCounter(el:HTMLElement){
-  const node=el.firstChild;
-  if(!node||node.nodeType!==Node.TEXT_NODE) return;
-  const raw=node.nodeValue??"";
-  const match=raw.match(/^(\D*)(\d[\d,]*(?:\.\d+)?)(.*)$/s);
-  if(!match) return;
-  const [,prefix,numberText,suffix]=match;
-  const hasComma=numberText.includes(",");
-  const decimals=(numberText.split(".")[1]||"").length;
-  const target=parseFloat(numberText.replace(/,/g,""));
-  if(!isFinite(target)||target<=0) return;
-  const duration=1400;
-  const start=performance.now();
-  const format=(value:number)=>{
-    const fixed=value.toFixed(decimals);
-    return hasComma?Number(fixed).toLocaleString("en-US",{minimumFractionDigits:decimals,maximumFractionDigits:decimals}):fixed;
-  };
-  const step=(now:number)=>{
-    const t=Math.min(1,(now-start)/duration);
-    const eased=1-Math.pow(1-t,4);
-    node.nodeValue=`${prefix}${format(target*eased)}${suffix}`;
-    if(t<1) window.requestAnimationFrame(step);
-    else node.nodeValue=raw;
-  };
-  node.nodeValue=`${prefix}${format(0)}${suffix}`;
-  window.requestAnimationFrame(step);
-}
-
-export default function Layout(){
-  const [open,setOpen]=useState(false);
-  const loc=useLocation();
-  const headerRef=useRef<HTMLElement>(null);
-  const ringRef=useRef<HTMLDivElement>(null);
-  const dotRef=useRef<HTMLDivElement>(null);
-  const openRef=useRef(false);
-  const magnetsRef=useRef<Magnet[]>([]);
-
-  useEffect(()=>{openRef.current=open;},[open]);
+export default function ParticleField(){
+  const canvasRef=useRef<HTMLCanvasElement>(null);
 
   useEffect(()=>{
-    setOpen(false);
-    window.scrollTo({top:0,behavior:"instant" as ScrollBehavior});
-  },[loc.pathname]);
+    const canvas=canvasRef.current;
+    if(!canvas) return;
+    const ctx=canvas.getContext("2d");
+    if(!ctx) return;
+    if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-  /* ── Global motion: pointer light, cursor ring, parallax, tilt, magnets, ripples, scroll ── */
-  useEffect(()=>{
-    const root=document.documentElement;
-    const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const fine=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const finePointer=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    let width=0;
+    let height=0;
+    let dpr=1;
+    let particles:Particle[]=[];
+    let frame=0;
+    let running=true;
+    const pointer={x:-9999,y:-9999,active:false};
 
-    const s={
-      tx:window.innerWidth/2,ty:window.innerHeight*.35, // pointer target
-      cx:window.innerWidth/2,cy:window.innerHeight*.35, // smoothed cursor ring
-      tmx:0,tmy:0,mx:0,my:0,                            // normalised -1..1 pointer for parallax
-      pointerIn:false,
-      lastY:window.scrollY,
+    const build=()=>{
+      width=window.innerWidth;
+      height=window.innerHeight;
+      dpr=1;
+      canvas.width=Math.floor(width*dpr);
+      canvas.height=Math.floor(height*dpr);
+      canvas.style.width=`${width}px`;
+      canvas.style.height=`${height}px`;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      const target=width<760?18:Math.min(42,Math.max(24,Math.round((width*height)/42000)));
+      particles=Array.from({length:target},()=>({
+        x:Math.random()*width,
+        y:Math.random()*height,
+        vx:(Math.random()-.5)*.22,
+        vy:(Math.random()-.5)*.22,
+        r:Math.random()*1.4+.6,
+        gold:Math.random()<.14,
+        phase:Math.random()*Math.PI*2,
+      }));
     };
-    let raf=0;
-    let activeCard:HTMLElement|null=null;
-    let scrollTicking=false;
 
-    const schedule=()=>{if(!raf) raf=window.requestAnimationFrame(tick);};
+    let lastDraw=0;
+    const draw=(time:number)=>{
+      if(!running) return;
+      frame=window.requestAnimationFrame(draw);
+      if(time-lastDraw<32) return; // ~30fps is plenty for a slow ambient layer
+      lastDraw=time;
+      if(document.documentElement.classList.contains("lite-motion")){
+        ctx.clearRect(0,0,width,height);
+        return;
+      }
+      ctx.clearRect(0,0,width,height);
+      const link=width<760?95:135;
+      const linkSq=link*link;
 
-    function tick(){
-      raf=0;
-      let moving=false;
+      for(const p of particles){
+        p.x+=p.vx;
+        p.y+=p.vy;
+        if(p.x<-20) p.x=width+20; else if(p.x>width+20) p.x=-20;
+        if(p.y<-20) p.y=height+20; else if(p.y>height+20) p.y=-20;
 
-      if(fine&&!reduce){
-        const dx=s.tx-s.cx;
-        const dy=s.ty-s.cy;
-        s.cx+=dx*.22;
-        s.cy+=dy*.22;
-        s.mx+=(s.tmx-s.mx)*.07;
-        s.my+=(s.tmy-s.my)*.07;
-        root.style.setProperty("--mx",s.mx.toFixed(4));
-        root.style.setProperty("--my",s.my.toFixed(4));
-        if(ringRef.current) ringRef.current.style.transform=`translate3d(${s.cx.toFixed(1)}px,${s.cy.toFixed(1)}px,0)`;
-        if(dotRef.current) dotRef.current.style.transform=`translate3d(${s.tx.toFixed(1)}px,${s.ty.toFixed(1)}px,0)`;
-        if(Math.abs(dx)>.1||Math.abs(dy)>.1||Math.abs(s.tmx-s.mx)>.001||Math.abs(s.tmy-s.my)>.001) moving=true;
-
-        for(const m of magnetsRef.current){
-          const rect=m.el.getBoundingClientRect();
-          const centreX=rect.left+rect.width/2-m.x;
-          const centreY=rect.top+rect.height/2-m.y;
-          const dxm=s.tx-centreX;
-          const dym=s.ty-centreY;
-          const dist=Math.hypot(dxm,dym);
-          const reach=rect.width/2+55;
-          let targetX=0;
-          let targetY=0;
-          if(s.pointerIn&&rect.width>0&&dist<reach){
-            const pull=(1-dist/reach)*.3;
-            targetX=Math.max(-9,Math.min(9,dxm*pull));
-            targetY=Math.max(-7,Math.min(7,dym*pull));
-          }
-          m.x+=(targetX-m.x)*.18;
-          m.y+=(targetY-m.y)*.18;
-          if(Math.abs(m.x)<.04&&Math.abs(m.y)<.04&&targetX===0&&targetY===0){
-            m.x=0;m.y=0;
-            m.el.style.removeProperty("translate");
-          }else{
-            m.el.style.translate=`${m.x.toFixed(2)}px ${m.y.toFixed(2)}px`;
-            moving=true;
+        if(pointer.active){
+          const dx=pointer.x-p.x;
+          const dy=pointer.y-p.y;
+          const d2=dx*dx+dy*dy;
+          if(d2<190*190&&d2>1){
+            const pull=(1-Math.sqrt(d2)/190)*.012;
+            p.x+=dx*pull;
+            p.y+=dy*pull;
           }
         }
       }
-      if(moving) schedule();
-    }
 
-    const resetCard=(card:HTMLElement|null)=>{
-      if(!card) return;
-      card.style.removeProperty("--rx");
-      card.style.removeProperty("--ry");
+      for(let i=0;i<particles.length;i++){
+        const a=particles[i];
+        for(let j=i+1;j<particles.length;j++){
+          const b=particles[j];
+          const dx=a.x-b.x;
+          const dy=a.y-b.y;
+          const d2=dx*dx+dy*dy;
+          if(d2<linkSq){
+            const alpha=(1-d2/linkSq)*.16;
+            ctx.strokeStyle=`rgba(${GREEN},${alpha.toFixed(3)})`;
+            ctx.lineWidth=.6;
+            ctx.beginPath();
+            ctx.moveTo(a.x,a.y);
+            ctx.lineTo(b.x,b.y);
+            ctx.stroke();
+          }
+        }
+        if(pointer.active){
+          const dx=a.x-pointer.x;
+          const dy=a.y-pointer.y;
+          const d2=dx*dx+dy*dy;
+          if(d2<170*170){
+            const alpha=(1-Math.sqrt(d2)/170)*.34;
+            ctx.strokeStyle=`rgba(${GREEN},${alpha.toFixed(3)})`;
+            ctx.lineWidth=.8;
+            ctx.beginPath();
+            ctx.moveTo(a.x,a.y);
+            ctx.lineTo(pointer.x,pointer.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      for(const p of particles){
+        const twinkle=.35+.3*Math.sin(time/900+p.phase);
+        ctx.fillStyle=`rgba(${p.gold?GOLD:GREEN},${twinkle.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+
     };
 
     const onPointerMove=(event:PointerEvent)=>{
-      if(event.pointerType==="touch") return;
-      s.tx=event.clientX;
-      s.ty=event.clientY;
-      s.tmx=(event.clientX/window.innerWidth-.5)*2;
-      s.tmy=(event.clientY/window.innerHeight-.5)*2;
-      s.pointerIn=true;
-      root.style.setProperty("--pointer-x",`${event.clientX}px`);
-      root.style.setProperty("--pointer-y",`${event.clientY}px`);
-
-      if(fine&&!reduce){
-        if(!root.classList.contains("has-cursor")){
-          s.cx=event.clientX;
-          s.cy=event.clientY;
-          root.classList.add("has-cursor");
-        }
-        const target=event.target as Element|null;
-        root.classList.toggle("cursor-active",!!target?.closest(INTERACTIVE_SELECTOR));
-
-        // Card spotlight + gentle 3D tilt
-        const card=target?.closest<HTMLElement>(".card")??null;
-        if(activeCard&&activeCard!==card) resetCard(activeCard);
-        activeCard=card;
-        if(card){
-          const rect=card.getBoundingClientRect();
-          const px=(event.clientX-rect.left)/rect.width;
-          const py=(event.clientY-rect.top)/rect.height;
-          card.style.setProperty("--card-x",`${event.clientX-rect.left}px`);
-          card.style.setProperty("--card-y",`${event.clientY-rect.top}px`);
-          card.style.setProperty("--ry",`${((px-.5)*5).toFixed(2)}deg`);
-          card.style.setProperty("--rx",`${(-(py-.5)*3.5).toFixed(2)}deg`);
-        }
-
-        // Hero grid that lights up under the pointer
-        const hero=target?.closest<HTMLElement>(".homehero, .pagehero");
-        if(hero){
-          const rect=hero.getBoundingClientRect();
-          hero.style.setProperty("--hx",`${event.clientX-rect.left}px`);
-          hero.style.setProperty("--hy",`${event.clientY-rect.top}px`);
-        }
-      }
-      schedule();
+      if(!finePointer) return;
+      pointer.x=event.clientX;
+      pointer.y=event.clientY;
+      pointer.active=true;
     };
-
-    const onPointerLeave=()=>{
-      s.pointerIn=false;
-      s.tmx=0;
-      s.tmy=0;
-      root.classList.remove("has-cursor","cursor-active","cursor-down");
-      resetCard(activeCard);
-      activeCard=null;
-      schedule();
-    };
-
-    const onPointerDown=(event:PointerEvent)=>{
-      if(event.pointerType==="touch"&&reduce) return;
-      root.classList.add("cursor-down");
-      if(reduce) return;
-      const target=(event.target as Element|null)?.closest<HTMLElement>(RIPPLE_SELECTOR);
-      if(!target) return;
-      const rect=target.getBoundingClientRect();
-      const size=Math.max(rect.width,rect.height)*1.6;
-      const ripple=document.createElement("span");
-      ripple.className="ripple";
-      ripple.setAttribute("aria-hidden","true");
-      ripple.style.width=ripple.style.height=`${size}px`;
-      ripple.style.left=`${event.clientX-rect.left-size/2}px`;
-      ripple.style.top=`${event.clientY-rect.top-size/2}px`;
-      target.appendChild(ripple);
-      ripple.addEventListener("animationend",()=>ripple.remove(),{once:true});
-    };
-    const onPointerUp=()=>root.classList.remove("cursor-down");
-
-    // Scroll progress, parallax offset and a navigation bar that tucks away while reading
-    const updateScroll=()=>{
-      scrollTicking=false;
-      const y=window.scrollY;
-      const max=document.documentElement.scrollHeight-window.innerHeight;
-      root.style.setProperty("--scroll-progress",`${(max>0?y/max:0)*100}%`);
-      root.style.setProperty("--sy",String(Math.round(y)));
-      const header=headerRef.current;
-      if(header){
-        header.dataset.scrolled=y>16?"true":"false";
-        if(!reduce){
-          if(y>s.lastY+6&&y>180&&!openRef.current) header.dataset.hidden="true";
-          else if(y<s.lastY-6||y<180) header.dataset.hidden="false";
-        }
-      }
-      s.lastY=y;
-    };
-    const onScroll=()=>{
-      if(!scrollTicking){
-        scrollTicking=true;
-        window.requestAnimationFrame(updateScroll);
+    const onPointerLeave=()=>{pointer.active=false;};
+    const onVisibility=()=>{
+      if(document.hidden){
+        running=false;
+        window.cancelAnimationFrame(frame);
+      }else if(!running){
+        running=true;
+        frame=window.requestAnimationFrame(draw);
       }
     };
+    let resizeTimer=0;
+    const onResize=()=>{
+      window.clearTimeout(resizeTimer);
+      resizeTimer=window.setTimeout(build,150);
+    };
 
-    updateScroll();
-    window.addEventListener("scroll",onScroll,{passive:true});
+    build();
+    frame=window.requestAnimationFrame(draw);
     window.addEventListener("pointermove",onPointerMove,{passive:true});
-    window.addEventListener("pointerdown",onPointerDown,{passive:true});
-    window.addEventListener("pointerup",onPointerUp,{passive:true});
     document.documentElement.addEventListener("pointerleave",onPointerLeave);
+    document.addEventListener("visibilitychange",onVisibility);
+    window.addEventListener("resize",onResize);
 
     return ()=>{
-      window.cancelAnimationFrame(raf);
-      window.removeEventListener("scroll",onScroll);
+      running=false;
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(resizeTimer);
       window.removeEventListener("pointermove",onPointerMove);
-      window.removeEventListener("pointerdown",onPointerDown);
-      window.removeEventListener("pointerup",onPointerUp);
       document.documentElement.removeEventListener("pointerleave",onPointerLeave);
-      root.classList.remove("has-cursor","cursor-active","cursor-down");
+      document.removeEventListener("visibilitychange",onVisibility);
+      window.removeEventListener("resize",onResize);
     };
   },[]);
 
-  /* ── Per-page: scroll-reveal, number counters and magnetic-button list ── */
-  useLayoutEffect(()=>{
-    const targets=Array.from(document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR));
-    const timers:number[]=[];
-
-    magnetsRef.current=Array.from(document.querySelectorAll<HTMLElement>(MAGNET_SELECTOR)).map(el=>({el,x:0,y:0}));
-
-    targets.forEach(el=>{
-      el.classList.add("motion-reveal");
-      const parent=el.parentElement;
-      if(parent&&el.matches(".card, .rows > div, .checklist li, .metricpreview b, .client-placeholder")){
-        const index=Array.prototype.indexOf.call(parent.children,el) as number;
-        el.style.setProperty("--reveal-delay",`${(index%4)*90}ms`);
-      }
-    });
-
-    const finish=(el:HTMLElement)=>{
-      el.classList.add("motion-done");
-      el.style.removeProperty("--reveal-delay");
-    };
-
-    const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if(reduceMotion||!("IntersectionObserver" in window)){
-      targets.forEach(el=>{el.classList.add("is-visible");finish(el);});
-      return ()=>{magnetsRef.current=[];};
-    }
-
-    const observer=new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{
-        if(!entry.isIntersecting) return;
-        const el=entry.target as HTMLElement;
-        el.classList.add("is-visible");
-        observer.unobserve(el);
-        if(el.matches(COUNTER_SELECTOR)) runCounter(el);
-        el.querySelectorAll<HTMLElement>(COUNTER_SELECTOR).forEach(runCounter);
-        timers.push(window.setTimeout(()=>finish(el),1300));
-      });
-    },{threshold:0.12,rootMargin:"0px 0px -35px 0px"});
-    targets.forEach(el=>observer.observe(el));
-
-    return ()=>{
-      observer.disconnect();
-      timers.forEach(id=>window.clearTimeout(id));
-      magnetsRef.current=[];
-    };
-  },[loc.pathname]);
-
-  return <div className="shell">
-    <div className="ambient-bg" aria-hidden="true">
-      <span className="ambient-orb ambient-orb-one"/><span className="ambient-orb ambient-orb-two"/>
-      <span className="ambient-orb ambient-orb-three"/><span className="ambient-grid"/>
-      <ParticleField/>
-      <span className="ambient-noise"/>
-    </div>
-    <div className="scroll-progress" aria-hidden="true"/>
-    <div className="cursor-ring" ref={ringRef} aria-hidden="true"/>
-    <div className="cursor-dot" ref={dotRef} aria-hidden="true"/>
-    <header className="nav" ref={headerRef}>
-      <Link to="/" className="brand"><img src="https://cdn.prod.website-files.com/63b610d81215b25001c51b2b/6473fd944a0547694b03e237_180DC_Logo_white.avif" alt="180 Degrees Consulting"/><small>MANIPAL UNIVERSITY JAIPUR</small></Link>
-      <button className="menu" onClick={()=>setOpen(!open)} aria-label="Toggle navigation" aria-expanded={open}>{open?<X/>:<Menu/>}</button>
-      <nav className={open?"links open":"links"}>{links.map(([to,label])=><NavLink key={to} to={to} className={({isActive})=>isActive?"active":""}>{label}</NavLink>)}<Link className="work-link" to="/work-with-us">Work With Us <ArrowUpRight size={15}/></Link></nav>
-    </header>
-    <main className="page-stage" key={loc.pathname}><Outlet/></main>
-    <footer><Link to="/" className="footbrand">180° <span>DEGREES CONSULTING · MUJ</span></Link><div className="footlinks">{links.map(([to,label])=><Link key={to} to={to}>{label}</Link>)}<Link to="/work-with-us">Work With Us</Link></div><small>Student-led consulting for social impact · <a href="mailto:jaipur@180dc.org">jaipur@180dc.org</a></small></footer>
-  </div>;
+  return <canvas ref={canvasRef} className="ambient-particles" aria-hidden="true"/>;
 }
